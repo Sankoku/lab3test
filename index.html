@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PC Helper - Помічник зі збирання ПК</title>
+    <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
+    <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+
+        #ar-container {
+            position: relative;
+            width: 100%;
+            height: 50vh;
+            background: #000;
+            border-radius: 15px;
+            margin: 10px;
+            overflow: hidden;
+        }
+
+        #chat-container {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 20px 20px 0 0;
+            box-shadow: 0 -5px 25px rgba(0,0,0,0.2);
+            max-height: 50vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        #chat-header {
+            background: linear-gradient(90deg, #4CAF50, #45a049);
+            color: white;
+            padding: 15px 20px;
+            text-align: center;
+            font-weight: bold;
+            border-radius: 20px 20px 0 0;
+        }
+
+        #chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 15px;
+            max-height: 300px;
+        }
+
+        .message {
+            margin-bottom: 15px;
+            padding: 12px 16px;
+            border-radius: 18px;
+            max-width: 85%;
+            word-wrap: break-word;
+            animation: slideIn 0.3s ease;
+        }
+
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .user-message {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            margin-left: auto;
+            text-align: right;
+        }
+
+        .assistant-message {
+            background: #f1f3f4;
+            color: #333;
+            border: 1px solid #e0e0e0;
+        }
+
+        .loading {
+            background: #fff3cd !important;
+            color: #856404;
+            font-style: italic;
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 0.7; }
+            50% { opacity: 1; }
+        }
+
+        .error {
+            background: #f8d7da !important;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        #input-container {
+            display: flex;
+            padding: 15px;
+            gap: 10px;
+            background: white;
+            border-top: 1px solid #e0e0e0;
+        }
+
+        #chat-input {
+            flex: 1;
+            padding: 12px 16px;
+            border: 2px solid #e0e0e0;
+            border-radius: 25px;
+            outline: none;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+
+        #chat-input:focus {
+            border-color: #667eea;
+        }
+
+        #send-btn {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 45px;
+            height: 45px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: transform 0.2s;
+        }
+
+        #send-btn:hover {
+            transform: scale(1.1);
+        }
+
+        #send-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        #status {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 8px 15px;
+            border-radius: 20px;
+            color: white;
+            font-size: 12px;
+            z-index: 1000;
+            transition: all 0.3s;
+        }
+
+        .quick-questions {
+            display: flex;
+            gap: 8px;
+            padding: 10px 15px;
+            overflow-x: auto;
+            background: #f8f9fa;
+        }
+
+        .quick-btn {
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 15px;
+            padding: 8px 12px;
+            font-size: 12px;
+            cursor: pointer;
+            white-space: nowrap;
+            transition: all 0.2s;
+        }
+
+        .quick-btn:hover {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+        }
+
+        /* AR стили */
+        a-scene {
+            border-radius: 15px;
+        }
+
+        #ar-info {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: rgba(0,0,0,0.7);
+            color: white;
+            padding: 8px 12px;
+            border-radius: 10px;
+            font-size: 12px;
+            z-index: 100;
+        }
+    </style>
+</head>
+<body>
+    <!-- Статус підключення -->
+    <div id="status">Перевірка з'єднання...</div>
+
+    <!-- AR контейнер -->
+    <div id="ar-container">
+        <div id="ar-info">Наведіть камеру на маркер для AR</div>
+        
+        <a-scene 
+            mindar-image="imageTargetSrc: https://cdn.jsdelivr.net/gh/hiukim/mind-ar-js@1.2.5/examples/image-tracking/assets/card-example/card.mind; maxTrack: 1" 
+            color-space="sRGB" 
+            renderer="colorManagement: true, physicallyCorrectLights" 
+            vr-mode-ui="enabled: false" 
+            device-orientation-permission-ui="enabled: false"
+            style="width: 100%; height: 100%;">
+            
+            <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
+
+            <a-entity id="ar-root" mindar-image-target="targetIndex: 0">
+                <!-- Простий куб замість складної моделі -->
+                <a-box 
+                    position="0 0 0" 
+                    scale="0.3 0.3 0.3"
+                    color="#4CAF50"
+                    animation="property: rotation; to: 0 360 0; loop: true; dur: 4000">
+                </a-box>
+                
+                <!-- AR текст -->
+                <a-text 
+                    id="ar-text"
+                    value="PC Helper активований!"
+                    position="0 0.5 0"
+                    align="center"
+                    color="#ffffff"
+                    scale="1.5 1.5 1.5"
+                    visible="false">
+                </a-text>
+            </a-entity>
+        </a-scene>
+    </div>
+
+    <!-- Чат контейнер -->
+    <div id="chat-container">
+        <div id="chat-header">
+            🖥️ PC Helper - Помічник зі збирання ПК
+        </div>
+        
+        <div class="quick-questions">
+            <button class="quick-btn" onclick="askQuickQuestion('Чи сумісні RTX 4060 і Ryzen 5 5600X?')">Сумісність відеокарти</button>
+            <button class="quick-btn" onclick="askQuickQuestion('Скільки оперативної пам\'яті потрібно для ігор?')">Кількість RAM</button>
+            <button class="quick-btn" onclick="askQuickQuestion('Який блок живлення вибрати для RTX 4070?')">Блок живлення</button>
+            <button class="quick-btn" onclick="askQuickQuestion('Різниця між DDR4 і DDR5?')">Тип пам\'яті</button>
+        </div>
+        
+        <div id="chat-messages"></div>
+        
+        <div id="input-container">
+            <input 
+                type="text" 
+                id="chat-input" 
+                placeholder="Запитайте про сумісність комплектуючих, рекомендації..."
+                maxlength="500"
+            />
+            <button id="send-btn" onclick="sendMessage()">
+                ➤
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // Конфігурація
+        const CONFIG = {
+            apiUrl: 'https://your-backend.vercel.app/api', // ЗАМІНІТЬ на ваш URL
+        };
+
+        // Елементи інтерфейсу
+        const chatMessages = document.getElementById('chat-messages');
+        const chatInput = document.getElementById('chat-input');
+        const sendBtn = document.getElementById('send-btn');
+        const statusDiv = document.getElementById('status');
+
+        let isLoading = false;
+
+        // Перевірка доступності сервера
+        async function checkServerStatus() {
+            try {
+                const response = await fetch(`${CONFIG.apiUrl}/health`);
+                const isHealthy = response.ok;
+                
+                statusDiv.textContent = isHealthy ? '✅ Сервер доступний' : '❌ Сервер недоступний';
+                statusDiv.style.background = isHealthy ? 'rgba(76,175,80,0.9)' : 'rgba(244,67,54,0.9)';
+                
+                setTimeout(() => {
+                    statusDiv.style.opacity = '0';
+                    setTimeout(() => statusDiv.style.display = 'none', 300);
+                }, 3000);
+                
+                return isHealthy;
+            } catch (error) {
+                statusDiv.textContent = '❌ Помилка з\'єднання';
+                statusDiv.style.background = 'rgba(244,67,54,0.9)';
+                return false;
+            }
+        }
+
+        // Функції чату
+        function addMessage(role, content, isError = false, isLoading = false) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${role}-message`;
+            
+            if (isError) messageDiv.classList.add('error');
+            if (isLoading) {
+                messageDiv.classList.add('loading');
+                messageDiv.id = 'loading-message';
+            }
+            
+            messageDiv.textContent = content;
+            chatMessages.appendChild(messageDiv);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        function removeLoadingMessage() {
+            const loadingMsg = document.getElementById('loading-message');
+            if (loadingMsg) {
+                loadingMsg.remove();
+            }
+        }
+
+        // Відправка повідомлення
+        async function sendMessage(message = null) {
+            const text = message || chatInput.value.trim();
+            if (!text || isLoading) return;
+
+            if (!message) chatInput.value = '';
+            setLoading(true);
+            
+            addMessage('user', text);
+            addMessage('assistant', 'Думаю...', false, true);
+            
+            try {
+                const response = await fetch(`${CONFIG.apiUrl}/chat`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        message: text
+                    })
+                });
+
+                removeLoadingMessage();
+
+                if (!response.ok) {
+                    throw new Error(`HTTP помилка! статус: ${response.status}`);
+                }
+
+                const data = await response.json();
+
+                if (data.success) {
+                    addMessage('assistant', data.message);
+                } else {
+                    throw new Error(data.error || 'Невідома помилка');
+                }
+
+            } catch (error) {
+                removeLoadingMessage();
+                console.error('Помилка чату:', error);
+                addMessage('assistant', `Вибачте, сталася помилка: ${error.message}`, true);
+            } finally {
+                setLoading(false);
+            }
+        }
+
+        function askQuickQuestion(question) {
+            sendMessage(question);
+        }
+
+        function setLoading(loading) {
+            isLoading = loading;
+            sendBtn.disabled = loading;
+            chatInput.disabled = loading;
+        }
+
+        // Обробка введення
+        chatInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+            }
+        });
+
+        // AR обробка
+        document.addEventListener('DOMContentLoaded', () => {
+            checkServerStatus();
+            
+            const scene = document.querySelector('a-scene');
+            scene.addEventListener('loaded', () => {
+                console.log('A-Frame сцена завантажена');
+                
+                const arRoot = document.getElementById('ar-root');
+                const arText = document.getElementById('ar-text');
+                
+                arRoot.addEventListener('targetFound', (event) => {
+                    console.log('AR маркер знайдено!');
+                    arText.setAttribute('visible', true);
+                    
+                    // Відправляємо повідомлення про AR
+                    setTimeout(() => {
+                        addMessage('assistant', '🎯 AR активовано! Тепер можете запитати про комплектуючі для ПК.');
+                    }, 1000);
+                });
+                
+                arRoot.addEventListener('targetLost', (event) => {
+                    console.log('AR маркер втрачено');
+                    arText.setAttribute('visible', false);
+                });
+            });
+
+            // Стартове повідомлення
+            setTimeout(() => {
+                addMessage('assistant', 'Привіт! 👋 Я ваш помічник зі збирання ПК. Можу допомогти з:\n\n• Сумісністю комплектуючих\n• Вибором процесора та відеокарти\n• Розрахунком потужності БЖ\n• Рекомендаціями по охолодженню\n• Порівнянням цін та характеристик\n\nЗапитайте що завгодно! 🖥️');
+            }, 1000);
+        });
+
+        // Автофокус на поле введення
+        setTimeout(() => {
+            chatInput.focus();
+        }, 2000);
+    </script>
+</body>
+</html>
