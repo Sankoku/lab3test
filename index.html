@@ -4,9 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>PC Helper - Помічник зі збирання ПК</title>
-    <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
-    <script type="module" src="https://cdn.jsdelivr.net/npm/deep-chat@1.12.14/dist/deepChat.bundle.js"></script>
     <style>
         * {
             margin: 0;
@@ -18,28 +15,21 @@
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
         }
 
-        #ar-container {
-            position: relative;
+        #main-container {
             width: 100%;
-            height: 50vh;
-            background: #000;
-            border-radius: 15px;
-            margin: 10px;
-            overflow: hidden;
-        }
-
-        #chat-container {
-            position: fixed;
-            bottom: 0;
-            left: 0;
-            right: 0;
+            max-width: 800px;
             background: rgba(255, 255, 255, 0.95);
             backdrop-filter: blur(10px);
-            border-radius: 20px 20px 0 0;
-            box-shadow: 0 -5px 25px rgba(0,0,0,0.2);
-            max-height: 50vh;
+            border-radius: 20px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+            overflow: hidden;
+            height: 85vh;
             display: flex;
             flex-direction: column;
         }
@@ -47,10 +37,10 @@
         #chat-header {
             background: linear-gradient(90deg, #4CAF50, #45a049);
             color: white;
-            padding: 15px 20px;
+            padding: 20px;
             text-align: center;
             font-weight: bold;
-            border-radius: 20px 20px 0 0;
+            font-size: 18px;
         }
 
         #status {
@@ -69,10 +59,11 @@
         .quick-questions {
             display: flex;
             gap: 8px;
-            padding: 10px 15px;
+            padding: 15px;
             overflow-x: auto;
             background: #f8f9fa;
             border-bottom: 1px solid #e0e0e0;
+            flex-shrink: 0;
         }
 
         .quick-btn {
@@ -92,103 +83,220 @@
             border-color: #667eea;
         }
 
-        /* AR стили */
-        a-scene {
-            border-radius: 15px;
-        }
-
-        #ar-info {
-            position: absolute;
-            top: 10px;
-            left: 10px;
-            background: rgba(0,0,0,0.7);
-            color: white;
-            padding: 8px 12px;
-            border-radius: 10px;
-            font-size: 12px;
-            z-index: 100;
-        }
-
-        /* Deep Chat стилізація */
-        deep-chat {
-            height: 350px;
-            width: 100%;
-            border: none;
-            border-radius: 0;
-        }
-
         #api-key-setup {
-            padding: 15px;
+            padding: 20px;
             background: #fff3cd;
             border-bottom: 1px solid #ffeaa7;
-            display: none;
+            flex-shrink: 0;
         }
 
         #api-key-input {
             width: 100%;
-            padding: 8px 12px;
+            padding: 12px;
             border: 1px solid #ddd;
             border-radius: 10px;
             margin-bottom: 10px;
+            font-size: 14px;
         }
 
         #save-key-btn {
             background: #4CAF50;
             color: white;
             border: none;
-            padding: 8px 16px;
+            padding: 10px 20px;
             border-radius: 10px;
             cursor: pointer;
+            font-size: 14px;
         }
 
         .api-info {
-            font-size: 12px;
+            font-size: 13px;
             color: #666;
-            margin-bottom: 10px;
+            margin-bottom: 15px;
+            line-height: 1.4;
+        }
+
+        #chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .message {
+            display: flex;
+            max-width: 85%;
+            animation: fadeIn 0.3s ease-in;
+        }
+
+        .message.user {
+            align-self: flex-end;
+            flex-direction: row-reverse;
+        }
+
+        .message.ai {
+            align-self: flex-start;
+        }
+
+        .message-bubble {
+            padding: 12px 16px;
+            border-radius: 18px;
+            word-wrap: break-word;
+            line-height: 1.4;
+        }
+
+        .message.user .message-bubble {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+        }
+
+        .message.ai .message-bubble {
+            background: #f1f3f4;
+            color: #333;
+            border: 1px solid #e0e0e0;
+        }
+
+        .message-avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            margin: 0 8px;
+            flex-shrink: 0;
+        }
+
+        .message.user .message-avatar {
+            background: #667eea;
+            color: white;
+        }
+
+        .message.ai .message-avatar {
+            background: #4CAF50;
+            color: white;
+        }
+
+        #chat-input-container {
+            padding: 20px;
+            background: white;
+            border-top: 1px solid #e0e0e0;
+            flex-shrink: 0;
+        }
+
+        #chat-input-form {
+            display: flex;
+            gap: 10px;
+            align-items: flex-end;
+        }
+
+        #chat-input {
+            flex: 1;
+            padding: 12px 16px;
+            border: 2px solid #e0e0e0;
+            border-radius: 25px;
+            font-size: 14px;
+            resize: none;
+            min-height: 45px;
+            max-height: 120px;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        #chat-input:focus {
+            border-color: #667eea;
+        }
+
+        #send-btn {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 45px;
+            height: 45px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            transition: transform 0.2s;
+            flex-shrink: 0;
+        }
+
+        #send-btn:hover {
+            transform: scale(1.05);
+        }
+
+        #send-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .typing-indicator {
+            display: none;
+            align-items: center;
+            gap: 5px;
+            color: #666;
+            font-style: italic;
+            padding: 10px 0;
+        }
+
+        .typing-dots {
+            display: flex;
+            gap: 3px;
+        }
+
+        .dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: #666;
+            animation: bounce 1.4s infinite ease-in-out;
+        }
+
+        .dot:nth-child(1) { animation-delay: -0.32s; }
+        .dot:nth-child(2) { animation-delay: -0.16s; }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes bounce {
+            0%, 80%, 100% { transform: scale(0); }
+            40% { transform: scale(1); }
+        }
+
+        .error-message {
+            background: #ffebee;
+            color: #c62828;
+            padding: 10px;
+            border-radius: 10px;
+            margin: 10px 0;
+            border-left: 4px solid #c62828;
+        }
+
+        .success-message {
+            background: #e8f5e8;
+            color: #2e7d32;
+            padding: 10px;
+            border-radius: 10px;
+            margin: 10px 0;
+            border-left: 4px solid #2e7d32;
         }
     </style>
 </head>
 <body>
     <!-- Статус -->
-    <div id="status">✅ Deep Chat готовий</div>
+    <div id="status">🤖 PC Helper готовий</div>
 
-    <!-- AR контейнер -->
-    <div id="ar-container">
-        <div id="ar-info">Наведіть камеру на маркер для AR</div>
-        
-        <a-scene 
-            mindar-image="imageTargetSrc: https://cdn.jsdelivr.net/gh/hiukim/mind-ar-js@1.2.5/examples/image-tracking/assets/card-example/card.mind; maxTrack: 1" 
-            color-space="sRGB" 
-            renderer="colorManagement: true, physicallyCorrectLights" 
-            vr-mode-ui="enabled: false" 
-            device-orientation-permission-ui="enabled: false"
-            style="width: 100%; height: 100%;">
-            
-            <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
-
-            <a-entity id="ar-root" mindar-image-target="targetIndex: 0">
-                <a-box 
-                    position="0 0 0" 
-                    scale="0.3 0.3 0.3"
-                    color="#4CAF50"
-                    animation="property: rotation; to: 0 360 0; loop: true; dur: 4000">
-                </a-box>
-                
-                <a-text 
-                    id="ar-text"
-                    value="PC Helper активований!"
-                    position="0 0.5 0"
-                    align="center"
-                    color="#ffffff"
-                    scale="1.5 1.5 1.5"
-                    visible="false">
-                </a-text>
-            </a-entity>
-        </a-scene>
-    </div>
-
-    <!-- Чат контейнер -->
-    <div id="chat-container">
+    <!-- Головний контейнер -->
+    <div id="main-container">
+        <!-- Заголовок -->
         <div id="chat-header">
             🖥️ PC Helper - Помічник зі збирання ПК
         </div>
@@ -196,7 +304,9 @@
         <!-- Налаштування API ключа -->
         <div id="api-key-setup">
             <div class="api-info">
-                Введіть ваш OpenRouter API ключ (отримати можна на openrouter.ai):
+                <strong>🔑 Введіть ваш OpenRouter API ключ:</strong><br>
+                Отримати ключ можна на <a href="https://openrouter.ai/keys" target="_blank">openrouter.ai/keys</a><br>
+                <small>⚠️ Ключ збережеться тільки на час сесії і не передається нікуди окрім OpenRouter</small>
             </div>
             <input 
                 type="password" 
@@ -205,30 +315,64 @@
                 autocomplete="off"
             />
             <button id="save-key-btn" onclick="saveApiKey()">Зберегти ключ</button>
+            <div id="key-status"></div>
         </div>
         
-        <div class="quick-questions">
+        <!-- Швидкі запитання -->
+        <div class="quick-questions" id="quick-questions" style="display: none;">
             <button class="quick-btn" onclick="sendQuickQuestion('Чи сумісні RTX 4060 і Ryzen 5 5600X?')">Сумісність відеокарти</button>
             <button class="quick-btn" onclick="sendQuickQuestion('Скільки оперативної пам\'яті потрібно для ігор?')">Кількість RAM</button>
             <button class="quick-btn" onclick="sendQuickQuestion('Який блок живлення вибрати для RTX 4070?')">Блок живлення</button>
             <button class="quick-btn" onclick="sendQuickQuestion('Різниця між DDR4 і DDR5?')">Тип пам\'яті</button>
         </div>
         
-        <!-- Deep Chat компонент -->
-        <deep-chat 
-            id="chat-element"
-            style="border-radius: 0px;"
-            messageStyles='{"default": {"shared": {"bubble": {"maxWidth": "85%", "borderRadius": "18px", "padding": "12px 16px"}}, "user": {"textColor": "white", "bubble": {"backgroundColor": "#667eea", "backgroundImage": "linear-gradient(135deg, #667eea, #764ba2)"}}, "ai": {"textColor": "#333", "bubble": {"backgroundColor": "#f1f3f4", "border": "1px solid #e0e0e0"}}}}'
-            textInput='{"placeholder": {"text": "Запитайте про сумісність комплектуючих, рекомендації..."}, "styles": {"container": {"borderRadius": "25px", "border": "2px solid #e0e0e0", "padding": "12px 16px"}}}'
-            submitButtonStyles='{"submit": {"backgroundColor": "#667eea", "backgroundImage": "linear-gradient(135deg, #667eea, #764ba2)", "borderRadius": "50%", "width": "45px", "height": "45px"}}'
-        ></deep-chat>
+        <!-- Повідомлення чату -->
+        <div id="chat-messages">
+            <div class="message ai">
+                <div class="message-avatar">🤖</div>
+                <div class="message-bubble">
+                    Привіт! 👋 Я ваш помічник зі збирання ПК. Можу допомогти з:<br><br>
+                    • Сумісністю комплектуючих<br>
+                    • Вибором процесора та відеокарти<br>
+                    • Розрахунком потужності БЖ<br>
+                    • Рекомендаціями по охолодженню<br>
+                    • Порівнянням цін та характеристик<br><br>
+                    Запитайте що завгодно! 🖥️
+                </div>
+            </div>
+        </div>
+
+        <!-- Індикатор набору -->
+        <div class="typing-indicator" id="typing-indicator">
+            <div class="message-avatar">🤖</div>
+            <span>PC Helper друкує</span>
+            <div class="typing-dots">
+                <div class="dot"></div>
+                <div class="dot"></div>
+                <div class="dot"></div>
+            </div>
+        </div>
+
+        <!-- Поле вводу -->
+        <div id="chat-input-container" style="display: none;">
+            <form id="chat-input-form">
+                <textarea 
+                    id="chat-input" 
+                    placeholder="Запитайте про сумісність комплектуючих, рекомендації..."
+                    rows="1"
+                ></textarea>
+                <button type="submit" id="send-btn">
+                    ➤
+                </button>
+            </form>
+        </div>
     </div>
 
     <script>
-        let chatElement;
         let apiKey = null;
+        let conversationHistory = [];
 
-        // Системний промпт для PC Helper
+        // Системний промпт
         const SYSTEM_PROMPT = `Ти - PC Helper, експерт зі збирання комп'ютерів. Ти допомагаєш користувачам з:
 
 1. Сумісністю комплектуючих (процесори, відеокарти, материнські плати, RAM)
@@ -240,126 +384,180 @@
 
 Відповідай українською мовою, будь дружнім і корисним. Надавай конкретні рекомендації з поясненням чому саме такий вибір.`;
 
-        // Функція налаштування Deep Chat
-        function setupDeepChat() {
-            chatElement = document.getElementById('chat-element');
-            
-            // Початкове повідомлення
-            chatElement.addMessage({
-                role: 'ai',
-                text: 'Привіт! 👋 Я ваш помічник зі збирання ПК. Можу допомогти з:\n\n• Сумісністю комплектуючих\n• Вибором процесора та відеокарти\n• Розрахунком потужності БЖ\n• Рекомендаціями по охолодженню\n• Порівнянням цін та характеристик\n\nЗапитайте що завгодно! 🖥️'
-            });
-
-            // Перевіряємо наявність API ключа
-            const savedKey = localStorage.getItem('openrouter_api_key');
-            if (savedKey) {
-                apiKey = savedKey;
-                setupChatWithAPI();
-            } else {
-                showApiKeySetup();
-            }
-        }
-
-        // Показати форму для введення API ключа
-        function showApiKeySetup() {
-            document.getElementById('api-key-setup').style.display = 'block';
-            chatElement.addMessage({
-                role: 'ai',
-                text: '🔑 Для роботи чату потрібен API ключ від OpenRouter. Будь ласка, введіть його вище.'
-            });
-        }
-
         // Зберегти API ключ
         function saveApiKey() {
             const keyInput = document.getElementById('api-key-input');
             const key = keyInput.value.trim();
+            const statusDiv = document.getElementById('key-status');
             
             if (!key) {
-                alert('Будь ласка, введіть API ключ');
+                statusDiv.innerHTML = '<div class="error-message">Будь ласка, введіть API ключ</div>';
+                return;
+            }
+
+            if (!key.startsWith('sk-or-v1-')) {
+                statusDiv.innerHTML = '<div class="error-message">Переконайтеся що ключ від OpenRouter починається з "sk-or-v1-"</div>';
                 return;
             }
 
             apiKey = key;
-            localStorage.setItem('openrouter_api_key', key);
+            
+            // Приховати форму налаштування
             document.getElementById('api-key-setup').style.display = 'none';
+            document.getElementById('quick-questions').style.display = 'flex';
+            document.getElementById('chat-input-container').style.display = 'block';
             
-            setupChatWithAPI();
-            
-            chatElement.addMessage({
-                role: 'ai',
-                text: '✅ API ключ збережено! Тепер можете ставити запитання.'
-            });
+            // Показати повідомлення про успіх
+            addMessage('ai', '✅ API ключ збережено! Тепер можете ставити запитання.');
         }
 
-        // Налаштування чату з API
-        function setupChatWithAPI() {
-            if (!apiKey) return;
+        // Додати повідомлення до чату
+        function addMessage(role, content) {
+            const messagesDiv = document.getElementById('chat-messages');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${role}`;
+            
+            const avatar = role === 'user' ? '👤' : '🤖';
+            
+            messageDiv.innerHTML = `
+                <div class="message-avatar">${avatar}</div>
+                <div class="message-bubble">${content.replace(/\n/g, '<br>')}</div>
+            `;
+            
+            messagesDiv.appendChild(messageDiv);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
 
-            chatElement.directConnection = {
-                openAI: {
-                    url: 'https://openrouter.ai/api/v1/chat/completions',
-                    model: 'deepseek/deepseek-r1-0528-qwen3-8b:free',
+        // Показати індикатор набору
+        function showTypingIndicator() {
+            document.getElementById('typing-indicator').style.display = 'flex';
+            const messagesDiv = document.getElementById('chat-messages');
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+
+        // Приховати індикатор набору
+        function hideTypingIndicator() {
+            document.getElementById('typing-indicator').style.display = 'none';
+        }
+
+        // Відправити повідомлення до OpenRouter
+        async function sendToOpenRouter(message) {
+            if (!apiKey) {
+                addMessage('ai', '❌ Спочатку введіть API ключ!');
+                return;
+            }
+
+            // Додати повідомлення користувача до історії
+            conversationHistory.push({ role: 'user', content: message });
+
+            try {
+                showTypingIndicator();
+
+                const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+                    method: 'POST',
                     headers: {
                         'Authorization': `Bearer ${apiKey}`,
+                        'Content-Type': 'application/json',
                         'HTTP-Referer': window.location.origin,
                         'X-Title': 'PC Helper'
                     },
-                    systemMessage: SYSTEM_PROMPT
+                    body: JSON.stringify({
+                        model: 'deepseek/deepseek-r1-distill-qwen-1.5b',
+                        messages: [
+                            { role: 'system', content: SYSTEM_PROMPT },
+                            ...conversationHistory
+                        ],
+                        max_tokens: 2000,
+                        temperature: 0.7,
+                        stream: false
+                    })
+                });
+
+                hideTypingIndicator();
+
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({}));
+                    throw new Error(`HTTP ${response.status}: ${errorData.error?.message || 'Невідома помилка'}`);
                 }
-            };
+
+                const data = await response.json();
+                const aiResponse = data.choices[0].message.content;
+
+                // Додати відповідь до історії
+                conversationHistory.push({ role: 'assistant', content: aiResponse });
+
+                // Показати відповідь
+                addMessage('ai', aiResponse);
+
+            } catch (error) {
+                hideTypingIndicator();
+                console.error('Помилка API:', error);
+                addMessage('ai', `❌ Помилка: ${error.message}`);
+            }
         }
 
         // Відправити швидке запитання
         function sendQuickQuestion(question) {
-            if (chatElement && apiKey) {
-                chatElement.addMessage({
-                    role: 'user',
-                    text: question
-                });
+            if (!apiKey) {
+                addMessage('ai', '❌ Спочатку введіть API ключ!');
+                return;
             }
+            
+            addMessage('user', question);
+            sendToOpenRouter(question);
         }
 
-        // AR обробка
-        document.addEventListener('DOMContentLoaded', () => {
-            // Налаштовуємо Deep Chat
-            setTimeout(setupDeepChat, 1000);
+        // Обробка форми
+        document.getElementById('chat-input-form').addEventListener('submit', function(e) {
+            e.preventDefault();
             
-            // AR логіка
-            const scene = document.querySelector('a-scene');
-            scene.addEventListener('loaded', () => {
-                console.log('A-Frame сцена завантажена');
-                
-                const arRoot = document.getElementById('ar-root');
-                const arText = document.getElementById('ar-text');
-                
-                arRoot.addEventListener('targetFound', (event) => {
-                    console.log('AR маркер знайдено!');
-                    arText.setAttribute('visible', true);
-                    
-                    // Відправляємо повідомлення про AR
-                    setTimeout(() => {
-                        if (chatElement && apiKey) {
-                            chatElement.addMessage({
-                                role: 'ai',
-                                text: '🎯 AR активовано! Тепер можете запитати про комплектуючі для ПК.'
-                            });
-                        }
-                    }, 1000);
-                });
-                
-                arRoot.addEventListener('targetLost', (event) => {
-                    console.log('AR маркер втрачено');
-                    arText.setAttribute('visible', false);
-                });
+            const input = document.getElementById('chat-input');
+            const message = input.value.trim();
+            const sendBtn = document.getElementById('send-btn');
+            
+            if (!message || !apiKey) return;
+            
+            // Заблокувати кнопку відправки
+            sendBtn.disabled = true;
+            input.disabled = true;
+            
+            // Додати повідомлення користувача
+            addMessage('user', message);
+            
+            // Очистити поле вводу
+            input.value = '';
+            input.style.height = 'auto';
+            
+            // Відправити до API
+            sendToOpenRouter(message).finally(() => {
+                sendBtn.disabled = false;
+                input.disabled = false;
+                input.focus();
             });
+        });
 
-            // Приховати статус через кілька секунд
-            setTimeout(() => {
-                const statusDiv = document.getElementById('status');
+        // Автоматичне розширення текстового поля
+        document.getElementById('chat-input').addEventListener('input', function() {
+            this.style.height = 'auto';
+            this.style.height = Math.min(this.scrollHeight, 120) + 'px';
+        });
+
+        // Відправка на Enter (без Shift)
+        document.getElementById('chat-input').addEventListener('keydown', function(e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                document.getElementById('chat-input-form').dispatchEvent(new Event('submit'));
+            }
+        });
+
+        // Приховати статус через кілька секунд
+        setTimeout(() => {
+            const statusDiv = document.getElementById('status');
+            if (statusDiv) {
                 statusDiv.style.opacity = '0';
                 setTimeout(() => statusDiv.style.display = 'none', 300);
-            }, 3000);
-        });
+            }
+        }, 3000);
     </script>
 </body>
 </html>
