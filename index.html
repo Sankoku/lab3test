@@ -291,7 +291,8 @@
         // Перевірка доступності сервера
         async function checkServerStatus() {
             try {
-                const response = await fetch(`${CONFIG.apiUrl}/health`);
+                const proxyUrl = 'https://cors-anywhere.herokuapp.com/';
+                const response = await fetch(proxyUrl + `${CONFIG.apiUrl}/health`);
                 const isHealthy = response.ok;
                 
                 statusDiv.textContent = isHealthy ? '✅ Сервер доступний' : '❌ Сервер недоступний';
@@ -345,7 +346,8 @@
             addMessage('assistant', 'Думаю...', false, true);
             
             try {
-                const response = await fetch(`${CONFIG.apiUrl}/chat`, {
+                const proxyUrl = 'https://cors-anywhere.herokuapp.com/';
+                const response = await fetch(proxyUrl + `${CONFIG.apiUrl}/chat`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
