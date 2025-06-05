@@ -1,0 +1,564 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8" />
+    <title>AR Детектор PC Компонентів - Материнська плата, CPU, RAM</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script src="https://cdn.jsdelivr.net/gh/hiukim/mind-ar-js@1.1.4/dist/mindar-image-three.prod.js"></script>
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.150.1/build/three.module.js",
+                "GLTFLoader": "https://unpkg.com/three@0.150.1/examples/jsm/loaders/GLTFLoader.js"
+            }
+        }
+    </script>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            width: 100vw;
+            height: 100vh;
+            position: fixed;
+            top: 0;
+            left: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        
+        #loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: white;
+            font-size: 18px;
+            z-index: 100;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 30px;
+            border-radius: 15px;
+            text-align: center;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .loading-spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-top: 4px solid #fff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        #status-panel {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            color: white;
+            font-size: 14px;
+            z-index: 99;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 20px;
+            border-radius: 15px;
+            max-width: 400px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        #main-status {
+            font-size: 16px;
+            font-weight: bold;
+            margin-bottom: 15px;
+            color: #4fc3f7;
+        }
+
+        .marker-status {
+            margin: 10px 0;
+            padding: 12px;
+            border-radius: 8px;
+            border-left: 4px solid;
+            transition: all 0.3s ease;
+        }
+
+        .marker-active {
+            background-color: rgba(76, 175, 80, 0.2);
+            border-left-color: #4caf50;
+            box-shadow: 0 0 10px rgba(76, 175, 80, 0.3);
+        }
+
+        .marker-inactive {
+            background-color: rgba(244, 67, 54, 0.2);
+            border-left-color: #f44336;
+        }
+
+        .component-name {
+            font-weight: bold;
+            font-size: 15px;
+        }
+
+        .component-description {
+            font-size: 12px;
+            margin-top: 5px;
+            opacity: 0.8;
+        }
+
+        #info-panel {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            color: white;
+            z-index: 99;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 15px;
+            border-radius: 10px;
+            max-width: 300px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            display: none;
+        }
+
+        #instructions {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            color: white;
+            font-size: 12px;
+            z-index: 99;
+            background: rgba(0, 0, 0, 0.6);
+            padding: 15px;
+            border-radius: 10px;
+            max-width: 250px;
+        }
+
+        .pulse {
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+    </style>
+</head>
+<body>
+    <div id="loading">
+        <div class="loading-spinner"></div>
+        <div>🔧 Завантаження AR системи детекції PC компонентів...</div>
+        <div style="font-size: 14px; margin-top: 15px;">Дозвольте доступ до камери для роботи з маркерами</div>
+    </div>
+    
+    <div id="status-panel">
+        <div id="main-status">📡 Статус: Ініціалізація AR системи...</div>
+        
+        <div id="motherboard-status" class="marker-status marker-inactive">
+            <div class="component-name">🔌 Материнська плата B550</div>
+            <div class="component-description">Маркер (b_550.mind) - НЕ ЗНАЙДЕНО</div>
+        </div>
+        
+        <div id="cpu-status" class="marker-status marker-inactive">
+            <div class="component-name">🧠 AMD Ryzen 5 3600</div>
+            <div class="component-description">Маркер (ryzen_3600.mind) - НЕ ЗНАЙДЕНО</div>
+        </div>
+        
+        <div id="ram-status" class="marker-status marker-inactive">
+            <div class="component-name">💾 Kingston RAM</div>
+            <div class="component-description">Маркер (ram_kingston.mind) - НЕ ЗНАЙДЕНО</div>
+        </div>
+    </div>
+
+    <div id="info-panel">
+        <h3 id="info-title">Інформація про компонент</h3>
+        <p id="info-content">Наведіть камеру на маркер для отримання детальної інформації</p>
+    </div>
+
+    <div id="instructions">
+        <div style="font-weight: bold; margin-bottom: 10px;">📋 Інструкції:</div>
+        <div>• Наведіть камеру на маркери</div>
+        <div>• Тримайте маркер в кадрі стабільно</div>
+        <div>• Забезпечте достатнє освітлення</div>
+        <div>• Можна відстежувати кілька маркерів одночасно</div>
+    </div>
+
+    <script type="module">
+        import * as THREE from "three";
+        import { GLTFLoader } from "GLTFLoader";
+
+        // Компонентна інформація
+        const componentInfo = {
+            motherboard: {
+                name: "Материнська плата B550",
+                description: "Сучасна материнська плата на чіпсеті AMD B550. Підтримує процесори AMD Ryzen серії 3000 та 5000.",
+                specs: "Socket AM4, DDR4-3200, PCIe 4.0, USB 3.2, SATA 6Gb/s",
+                color: 0x2e7d32,
+                modelPath: "./models/b_550/scene.gltf"
+            },
+            cpu: {
+                name: "AMD Ryzen 5 3600",
+                description: "6-ядерний процесор з архітектурою Zen 2. Відмінна продуктивність для ігор та робочих завдань.",
+                specs: "6 ядер/12 потоків, 3.6-4.2 GHz, 32MB L3 Cache, 65W TDP",
+                color: 0xed1c24,
+                modelPath: "./models/cpu_ryzen_5_3600/scene.gltf"
+            },
+            ram: {
+                name: "Kingston RAM",
+                description: "Високоякісна оперативна пам'ять Kingston. Надійність та стабільність для будь-яких завдань.",
+                specs: "DDR4, високі частоти, низькі тайминги, гарантія якості",
+                color: 0x000000,
+                modelPath: "./models/ram_kingston/scene.gltf"
+            }
+        };
+
+        class PCComponentsAR {
+            constructor() {
+                this.mindarThree = null;
+                this.scene = null;
+                this.camera = null;
+                this.renderer = null;
+                this.anchors = [];
+                this.isInitialized = false;
+                this.activeComponents = new Set();
+            }
+
+            async init() {
+                try {
+                    const { MindARThree } = window.MINDAR.IMAGE;
+                    
+                    this.updateMainStatus("🔄 Ініціалізація MindAR...");
+                    
+                    // Ініціалізація MindAR з комбінованим файлом маркерів
+                    this.mindarThree = new MindARThree({
+                        container: document.body,
+                        imageTargetSrc: "./markers.mind", // Комбінований файл з 3 маркерами
+                    });
+
+                    const { renderer, scene, camera } = this.mindarThree;
+                    this.renderer = renderer;
+                    this.scene = scene;
+                    this.camera = camera;
+
+                    // Налаштування освітлення
+                    this.setupLighting();
+
+                    // Створення анкорів для кожного маркера
+                    await this.createAnchors();
+
+                    // Запуск системи
+                    this.updateMainStatus("🚀 Запуск AR камери...");
+                    await this.mindarThree.start();
+                    
+                    this.updateMainStatus("✅ Система готова! Наведіть камеру на маркери");
+                    this.isInitialized = true;
+
+                    // Запуск циклу рендерингу
+                    this.startRenderLoop();
+
+                } catch (error) {
+                    console.error("❌ Помилка ініціалізації:", error);
+                    this.updateMainStatus("❌ Помилка ініціалізації AR системи");
+                }
+            }
+
+            setupLighting() {
+                // Ambient освітлення
+                const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+                this.scene.add(ambientLight);
+
+                // Направлене освітлення
+                const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+                directionalLight.position.set(1, 1, 1);
+                directionalLight.castShadow = true;
+                this.scene.add(directionalLight);
+
+                // Додаткове освітлення
+                const light2 = new THREE.DirectionalLight(0xffffff, 0.4);
+                light2.position.set(-1, -1, -1);
+                this.scene.add(light2);
+            }
+
+            async createAnchors() {
+                const components = ['motherboard', 'cpu', 'ram']; // Маркер 0=Motherboard, Маркер 1=CPU, Маркер 2=RAM
+                
+                for (let i = 0; i < components.length; i++) {
+                    const component = components[i];
+                    const anchor = this.mindarThree.addAnchor(i);
+                    this.anchors.push(anchor);
+
+                    // Створення 3D контенту для кожного компонента
+                    await this.create3DContent(anchor, component, i);
+
+                    // Обробники подій для маркерів
+                    anchor.onTargetFound = () => {
+                        console.log(`🎯 ${component.toUpperCase()} маркер знайдено на позиції ${i}!`);
+                        this.onMarkerFound(component);
+                    };
+
+                    anchor.onTargetLost = () => {
+                        console.log(`❌ ${component.toUpperCase()} маркер втрачено на позиції ${i}`);
+                        this.onMarkerLost(component);
+                    };
+                }
+            }
+
+            async create3DContent(anchor, component, index) {
+                const info = componentInfo[component];
+                const loader = new GLTFLoader();
+                
+                try {
+                    console.log(`🔄 Завантаження моделі для ${component}: ${info.modelPath}`);
+                    
+                    const gltf = await new Promise((resolve, reject) => {
+                        loader.load(
+                            info.modelPath,
+                            (gltf) => resolve(gltf),
+                            (progress) => {
+                                console.log(`📈 Прогрес завантаження ${component}:`, (progress.loaded / progress.total * 100) + '%');
+                            },
+                            (error) => reject(error)
+                        );
+                    });
+                    
+                    // Створення групи для компонента
+                    const group = new THREE.Group();
+                    
+                    // Налаштування моделі
+                    const model = gltf.scene;
+                    
+                    // Автоматичне масштабування на основі розміру моделі
+                    const box = new THREE.Box3().setFromObject(model);
+                    const size = box.getSize(new THREE.Vector3());
+                    const maxSize = Math.max(size.x, size.y, size.z);
+                    let scale = 1.0 / maxSize; // Базовий масштаб
+                    
+                    // Додатковий скейлінг для CPU
+                    if (component === 'cpu') {
+                        scale = scale * 0.5; // Зменшуємо CPU у 2 рази
+                        console.log(`🔧 CPU масштаб зменшено у 2 рази: ${scale}`);
+                    }
+                    
+                    model.scale.set(scale, scale, scale);
+                    
+                    // Центрування моделі
+                    const center = box.getCenter(new THREE.Vector3());
+                    model.position.set(-center.x * scale, -center.y * scale, -center.z * scale);
+                    
+                    // Поворот CPU та материнської плати на 90 градусів для вертикального відображення
+                    if (component === 'cpu' || component === 'motherboard') {
+                        model.rotation.x = Math.PI / 2; // 90 градусів
+                        console.log(`🔄 ${component.toUpperCase()} повернуто на 90° для вертикального відображення`);
+                    }
+                    
+                    // Додавання анімації обертання
+                    model.userData = {
+                        component: component,
+                        rotationSpeed: 0.01,
+                        originalScale: scale
+                    };
+                    
+                    group.add(model);
+
+                    // Додавання тексту з назвою
+                    this.addTextLabel(group, info.name, component);
+
+                    // Додавання індикаторів
+                    this.addIndicators(group, info.color);
+
+                    anchor.group.add(group);
+                    
+                    console.log(`✅ Модель ${component} завантажена успішно з масштабом ${scale}`);
+                    
+                } catch (error) {
+                    console.error(`❌ Помилка завантаження моделі ${component}:`, error);
+                    this.updateMainStatus(`❌ Помилка завантаження моделі ${component}`);
+                }
+            }
+
+            addTextLabel(group, text, component) {
+                // Створення текстової площини
+                const canvas = document.createElement('canvas');
+                const context = canvas.getContext('2d');
+                canvas.width = 512;
+                canvas.height = 128;
+                
+                context.fillStyle = '#000000';
+                context.fillRect(0, 0, canvas.width, canvas.height);
+                
+                context.fillStyle = '#ffffff';
+                context.font = 'bold 48px Arial';
+                context.textAlign = 'center';
+                context.fillText(text, canvas.width/2, canvas.height/2 + 15);
+                
+                const texture = new THREE.CanvasTexture(canvas);
+                const material = new THREE.MeshBasicMaterial({ 
+                    map: texture, 
+                    transparent: true,
+                    alphaTest: 0.1
+                });
+                
+                const geometry = new THREE.PlaneGeometry(1, 0.25);
+                const textMesh = new THREE.Mesh(geometry, material);
+                textMesh.position.set(0, -0.7, 0);
+                
+                group.add(textMesh);
+            }
+
+            addIndicators(group, color) {
+                // Кільцевий індикатор
+                const ringGeometry = new THREE.RingGeometry(0.7, 0.75, 32);
+                const ringMaterial = new THREE.MeshBasicMaterial({ 
+                    color: color,
+                    transparent: true,
+                    opacity: 0.6,
+                    side: THREE.DoubleSide
+                });
+                
+                const ring = new THREE.Mesh(ringGeometry, ringMaterial);
+                ring.position.set(0, 0, -0.1);
+                ring.userData.pulsePhase = Math.random() * Math.PI * 2;
+                
+                group.add(ring);
+            }
+
+            onMarkerFound(component) {
+                this.activeComponents.add(component);
+                this.updateMarkerStatus(component, true);
+                this.showComponentInfo(component);
+                
+                console.log(`✅ Активовано компонент: ${component}`);
+                console.log(`📊 Активні компоненти:`, Array.from(this.activeComponents));
+            }
+
+            onMarkerLost(component) {
+                this.activeComponents.delete(component);
+                this.updateMarkerStatus(component, false);
+                this.hideComponentInfo();
+                
+                console.log(`❌ Деактивовано компонент: ${component}`);
+                console.log(`📊 Активні компоненти:`, Array.from(this.activeComponents));
+            }
+
+            updateMarkerStatus(component, isActive) {
+                const statusElement = document.getElementById(`${component}-status`);
+                if (statusElement) {
+                    const info = componentInfo[component];
+                    const markerNames = {
+                        motherboard: 'b_550.mind',
+                        cpu: 'ryzen_3600.mind', 
+                        ram: 'ram_kingston.mind'
+                    };
+                    const statusText = isActive ? 'ЗНАЙДЕНО ✅' : 'НЕ ЗНАЙДЕНО ❌';
+                    
+                    statusElement.querySelector('.component-description').textContent = 
+                        `Маркер (${markerNames[component]}) - ${statusText}`;
+                    
+                    statusElement.className = `marker-status ${isActive ? 'marker-active' : 'marker-inactive'}`;
+                    
+                    if (isActive) {
+                        statusElement.classList.add('pulse');
+                        setTimeout(() => statusElement.classList.remove('pulse'), 2000);
+                    }
+                }
+            }
+
+            showComponentInfo(component) {
+                const info = componentInfo[component];
+                const infoPanel = document.getElementById('info-panel');
+                const infoTitle = document.getElementById('info-title');
+                const infoContent = document.getElementById('info-content');
+                
+                infoTitle.textContent = info.name;
+                infoContent.innerHTML = `
+                    <p><strong>Опис:</strong> ${info.description}</p>
+                    <p><strong>Специфікації:</strong> ${info.specs}</p>
+                `;
+                
+                infoPanel.style.display = 'block';
+            }
+
+            hideComponentInfo() {
+                if (this.activeComponents.size === 0) {
+                    document.getElementById('info-panel').style.display = 'none';
+                }
+            }
+
+            startRenderLoop() {
+                this.renderer.setAnimationLoop(() => {
+                    this.animate();
+                    this.renderer.render(this.scene, this.camera);
+                });
+            }
+
+            animate() {
+                const time = Date.now() * 0.001;
+                
+                this.anchors.forEach(anchor => {
+                    anchor.group.children.forEach(group => {
+                        // Анімація основної моделі
+                        group.children.forEach(child => {
+                            if (child.userData && child.userData.component) {
+                                // Обертання моделі
+                                child.rotation.y += child.userData.rotationSpeed;
+                                
+                                // Легке коливання по вертикалі
+                                child.position.y = Math.sin(time * 2) * 0.05;
+                            }
+                        });
+                        
+                        // Пульсація кільця
+                        const ring = group.children.find(child => child.geometry instanceof THREE.RingGeometry);
+                        if (ring) {
+                            const pulse = Math.sin(time * 2 + ring.userData.pulsePhase) * 0.1 + 0.9;
+                            ring.material.opacity = pulse * 0.6;
+                            ring.rotation.z += 0.005;
+                        }
+                    });
+                });
+            }
+
+            updateMainStatus(message) {
+                const statusDiv = document.getElementById('main-status');
+                if (statusDiv) {
+                    statusDiv.textContent = message;
+                }
+            }
+        }
+
+        // Ініціалізація при завантаженні сторінки
+        window.addEventListener("DOMContentLoaded", async () => {
+            console.log("🚀 Початок ініціалізації AR системи");
+            
+            const arSystem = new PCComponentsAR();
+            
+            try {
+                await arSystem.init();
+                console.log("✅ AR система ініціалізована успішно");
+            } catch (error) {
+                console.error("❌ Помилка запуску AR системи:", error);
+                document.getElementById('main-status').textContent = `❌ Помилка: ${error.message}`;
+            }
+            
+            // Приховування екрану завантаження
+            setTimeout(() => {
+                const loading = document.getElementById("loading");
+                if (loading) {
+                    loading.style.display = "none";
+                    console.log("Екран завантаження приховано");
+                }
+            }, 3000);
+        });
+
+        // Обробка помилок
+        window.addEventListener('error', (e) => {
+            console.error('Глобальна помилка:', e.error);
+            document.getElementById('main-status').textContent = '❌ Помилка системи';
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,647 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PC Helper AR - Доповнена реальність</title>
+    <link rel="stylesheet" href="styles.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="./aframe/aframe.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ar.js/2.2.2/aframe-ar.min.js"></script>
+</head>
+<body>
+    <!-- AR Scene -->
+    <a-scene embedded arjs="sourceType: webcam; debugUIEnabled: false; detectionMode: mono_and_matrix; matrixCodeType: 3x3;">
+        <a-assets>
+            <!-- Будемо створювати 3D моделі програмно -->
+        </a-assets>
+
+        <!-- Маркери для кожного компонента -->
+        <!-- Материнська плата (Pattern 0) -->
+        <a-marker type="pattern" url="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==" 
+                  id="motherboard-marker" emitevents="true">
+            <a-box position="0 0.5 0" material="color: green;" 
+                   geometry="width: 1.5; height: 0.1; depth: 1.2"
+                   component-info="type: motherboard">
+            </a-box>
+        </a-marker>
+
+        <!-- Процесор (Pattern 1) -->
+        <a-marker type="pattern" url="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==" 
+                  id="cpu-marker" emitevents="true">
+            <a-box position="0 0.5 0" material="color: blue;" 
+                   geometry="width: 0.4; height: 0.05; depth: 0.4"
+                   component-info="type: cpu">
+            </a-box>
+        </a-marker>
+
+        <!-- ОЗП (Pattern 2) -->
+        <a-marker type="pattern" url="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==" 
+                  id="ram-marker" emitevents="true">
+            <a-box position="0 0.5 0" material="color: red;" 
+                   geometry="width: 0.15; height: 0.8; depth: 1.2"
+                   component-info="type: ram">
+            </a-box>
+        </a-marker>
+
+        <!-- Відеокарта (Pattern 3) -->
+        <a-marker type="pattern" url="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==" 
+                  id="gpu-marker" emitevents="true">
+            <a-box position="0 0.5 0" material="color: orange;" 
+                   geometry="width: 2; height: 0.3; depth: 1"
+                   component-info="type: gpu">
+            </a-box>
+        </a-marker>
+
+        <!-- Блок живлення (Pattern 4) -->
+        <a-marker type="pattern" url="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==" 
+                  id="psu-marker" emitevents="true">
+            <a-box position="0 0.5 0" material="color: black;" 
+                   geometry="width: 1.4; height: 0.8; depth: 1.5"
+                   component-info="type: psu">
+            </a-box>
+        </a-marker>
+
+        <!-- Накопичувач (Pattern 5) -->
+        <a-marker type="pattern" url="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==" 
+                  id="storage-marker" emitevents="true">
+            <a-box position="0 0.5 0" material="color: purple;" 
+                   geometry="width: 1; height: 0.15; depth: 0.7"
+                   component-info="type: storage">
+            </a-box>
+        </a-marker>
+
+        <a-entity camera></a-entity>
+    </a-scene>
+
+    <!-- UI Overlay -->
+    <div class="ui-overlay">
+        <!-- Header -->
+        <div class="ar-header">
+            🖥️ PC Helper AR - Наведіть камеру на компоненти
+        </div>
+
+        <!-- API Key Setup -->
+        <div class="api-setup" id="api-setup">
+            <h3>🔑 Налаштування API</h3>
+            <p>Для роботи з DeepSeek потрібен API ключ:</p>
+            <input type="password" class="api-input" id="api-key-input" 
+                   placeholder="sk-or-v1-...">
+            <button class="btn" onclick="if(typeof saveApiKey === 'function') saveApiKey(); else console.log('Function not ready');">Зберегти ключ</button>
+            <div id="api-status"></div>
+            <p style="font-size: 12px; color: #666; margin-top: 10px;">
+                Отримати на <a href="https://openrouter.ai/keys" target="_blank">openrouter.ai/keys</a>
+            </p>
+        </div>
+
+        <!-- Component Info Panel -->
+        <div class="component-panel" id="component-panel">
+            <div class="component-title" id="component-title">
+                <span id="component-icon">🖥️</span>
+                <span id="component-name">Компонент</span>
+            </div>
+            <div class="component-specs" id="component-specs">
+                Характеристики компонента...
+            </div>
+            <button class="ask-btn" onclick="openInputModal()">
+                🤖 Запитати DeepSeek
+            </button>
+        </div>
+
+        <!-- Input Modal -->
+        <div class="input-modal" id="input-modal">
+            <div class="modal-content">
+                <h3>Запитання до DeepSeek</h3>
+                
+                <div class="input-tabs">
+                    <button class="tab-btn active" onclick="switchTab('text')">📝 Текст</button>
+                    <button class="tab-btn" onclick="switchTab('voice')">🎤 Голос</button>
+                </div>
+
+                <!-- Text Input -->
+                <div class="tab-content active" id="text-tab">
+                    <textarea class="text-input" id="question-text" 
+                              placeholder="Наприклад: Чи сумісний цей процесор з материнською платою? Яку відеокарту порекомендуєте?"></textarea>
+                </div>
+
+                <!-- Voice Input -->
+                <div class="tab-content" id="voice-tab">
+                    <div class="voice-controls">
+                        <p>Натисніть і утримуйте для запису:</p>
+                        <button class="voice-btn" id="voice-btn" onmousedown="startRecording()" onmouseup="stopRecording()">
+                            🎤
+                        </button>
+                        <p id="voice-status">Готовий до запису</p>
+                    </div>
+                </div>
+
+                <div class="modal-buttons">
+                    <button class="btn" onclick="askDeepSeek()">Запитати</button>
+                    <button class="btn close-btn" onclick="closeInputModal()">Закрити</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- AI Response Tooltip -->
+        <div class="ai-tooltip" id="ai-tooltip">
+            <div id="ai-response">Відповідь DeepSeek з'явиться тут...</div>
+        </div>
+
+        <!-- Instructions -->
+        <div class="instructions">
+            📱 Наведіть камеру на маркери компонентів ПК для перегляду 3D моделей та отримання інформації
+        </div>
+    </div>
+
+    <script>
+        // Глобальні змінні
+        let apiKey = null;
+        let currentComponent = null;
+        let isRecording = false;
+        let recognition = null;
+
+        // Дані про компоненти
+        const componentData = {
+            motherboard: {
+                name: 'Материнська плата',
+                icon: '🔧',
+                specs: [
+                    'Чіпсет: B550',
+                    'Роз\'єм: AM4',
+                    'Пам\'ять: DDR4, до 128GB',
+                    'PCIe: 4.0 x16, x1',
+                    'USB: 3.2, 2.0',
+                    'Мережа: Gigabit Ethernet'
+                ]
+            },
+            cpu: {
+                name: 'Процесор',
+                icon: '🧠',
+                specs: [
+                    'Модель: AMD Ryzen 5 5600X',
+                    'Ядра: 6 / Потоки: 12',
+                    'Частота: 3.7-4.6 GHz',
+                    'Роз\'єм: AM4',
+                    'TDP: 65W',
+                    'Кеш L3: 32MB'
+                ]
+            },
+            ram: {
+                name: 'Оперативна пам\'ять',
+                icon: '💾',
+                specs: [
+                    'Тип: DDR4-3200',
+                    'Об\'єм: 16GB (2x8GB)',
+                    'Таймінги: CL16',
+                    'Напруга: 1.35V',
+                    'Підтримка XMP: Так',
+                    'RGB: Є підсвітка'
+                ]
+            },
+            gpu: {
+                name: 'Відеокарта',
+                icon: '🎮',
+                specs: [
+                    'Модель: NVIDIA RTX 4060',
+                    'Пам\'ять: 8GB GDDR6',
+                    'Роз\'єм: PCIe 4.0 x16',
+                    'Живлення: 115W',
+                    'Конектори: HDMI, DisplayPort',
+                    'Ray Tracing: Підтримка'
+                ]
+            },
+            psu: {
+                name: 'Блок живлення',
+                icon: '⚡',
+                specs: [
+                    'Потужність: 650W',
+                    'Сертифікат: 80+ Gold',
+                    'Модульність: Напівмодульний',
+                    'Вентилятор: 120мм',
+                    'Захист: OVP, UVP, SCP',
+                    'Гарантія: 7 років'
+                ]
+            },
+            storage: {
+                name: 'Накопичувач',
+                icon: '💿',
+                specs: [
+                    'Тип: SSD NVMe M.2',
+                    'Об\'єм: 500GB',
+                    'Інтерфейс: PCIe 3.0 x4',
+                    'Швидкість: 3500/3000 MB/s',
+                    'Форм-фактор: 2280',
+                    'Ресурс: 300 TBW'
+                ]
+            }
+        };
+
+        // Системний промпт для DeepSeek
+        const SYSTEM_PROMPT = `Ти - PC Helper AR, експерт зі збирання комп'ютерів у доповненій реальності. Відповідай ТІЛЬКИ українською мовою.
+
+Контекст: Користувач дивиться на компонент ПК через AR камеру та ставить запитання.
+
+Твоя спеціалізація:
+1. Сумісність компонентів (детальний аналіз)
+2. Рекомендації по підбору з обґрунтуванням
+3. Розрахунок потужності та температур
+4. Порівняння альтернатив
+5. Пояснення технічних характеристик
+6. Поради по збиранню та налаштуванню
+
+ВАЖЛИВО:
+- Відповіді короткі але інформативні (до 200 слів)
+- Конкретні рекомендації з поясненням
+- Враховуй актуальні ціни в Україні
+- Технічно точні терміни
+- Практичні поради
+
+Формат відповіді:
+- Основна відповідь
+- 💡 Порада (якщо потрібно)
+- ⚠️ Застереження (якщо є)`;
+
+        // Ініціалізація AR компонентів
+        AFRAME.registerComponent('component-info', {
+            schema: {
+                type: {type: 'string'}
+            },
+            
+            init: function() {
+                const el = this.el;
+                const componentType = this.data.type;
+                
+                // Додаємо обробники подій
+                el.addEventListener('mouseenter', () => {
+                    showComponentPanel(componentType);
+                });
+                
+                el.addEventListener('mouseleave', () => {
+                    hideComponentPanel();
+                });
+                
+                // Для мобільних пристроїв
+                el.addEventListener('touchstart', () => {
+                    showComponentPanel(componentType);
+                });
+            }
+        });
+
+        // Показати панель компонента
+        function showComponentPanel(componentType) {
+            currentComponent = componentType;
+            const data = componentData[componentType];
+            const panel = document.getElementById('component-panel');
+            
+            // Оновити вміст панелі
+            document.getElementById('component-icon').textContent = data.icon;
+            document.getElementById('component-name').textContent = data.name;
+            
+            const specsHtml = data.specs.map(spec => 
+                `<div class="spec-item">• ${spec}</div>`
+            ).join('');
+            document.getElementById('component-specs').innerHTML = specsHtml;
+            
+            // Показати панель
+            panel.classList.add('visible');
+            
+            // Позиціонування (центр екрану)
+            panel.style.left = '50%';
+            panel.style.top = '70%';
+        }
+
+        // Приховати панель компонента
+        function hideComponentPanel() {
+            const panel = document.getElementById('component-panel');
+            panel.classList.remove('visible');
+        }
+
+        // Зберегти API ключ
+        function saveApiKey() {
+            const input = document.getElementById('api-key-input');
+            const key = input.value.trim();
+            const status = document.getElementById('api-status');
+            
+            if (!key) {
+                status.innerHTML = '<div class="error-message">Введіть API ключ</div>';
+                return;
+            }
+            
+            if (!key.startsWith('sk-or-v1-')) {
+                status.innerHTML = '<div class="error-message">Ключ повинен починатися з "sk-or-v1-"</div>';
+                return;
+            }
+            
+            apiKey = key;
+            status.innerHTML = '<div class="success-message">✅ API ключ збережено!</div>';
+            
+            setTimeout(() => {
+                document.getElementById('api-setup').classList.add('hidden');
+            }, 1500);
+        }
+
+        // Відкрити модальне вікно запитання
+        function openInputModal() {
+            if (!apiKey) {
+                alert('Спочатку налаштуйте API ключ!');
+                return;
+            }
+            
+            document.getElementById('input-modal').classList.add('visible');
+            
+            // Очистити попередні дані
+            document.getElementById('question-text').value = '';
+            document.getElementById('voice-status').textContent = 'Готовий до запису';
+        }
+
+        // Закрити модальне вікно
+        function closeInputModal() {
+            document.getElementById('input-modal').classList.remove('visible');
+            hideAiTooltip();
+        }
+
+        // Перемикання вкладок
+        function switchTab(tabName) {
+            // Оновити кнопки
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            event.target.classList.add('active');
+            
+            // Оновити контент
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.classList.remove('active');
+            });
+            document.getElementById(tabName + '-tab').classList.add('active');
+        }
+
+        // Голосове розпізнавання
+        function startRecording() {
+            if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+                alert('Голосове розпізнавання не підтримується у вашому браузері');
+                return;
+            }
+            
+            isRecording = true;
+            const voiceBtn = document.getElementById('voice-btn');
+            const voiceStatus = document.getElementById('voice-status');
+            
+            voiceBtn.classList.add('recording');
+            voiceStatus.textContent = '🎤 Говоріть зараз...';
+            
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            recognition = new SpeechRecognition();
+            recognition.lang = 'uk-UA';
+            recognition.continuous = false;
+            recognition.interimResults = false;
+            
+            recognition.onresult = (event) => {
+                const transcript = event.results[0][0].transcript;
+                document.getElementById('question-text').value = transcript;
+                voiceStatus.textContent = `✅ Розпізнано: "${transcript}"`;
+            };
+            
+            recognition.onerror = (event) => {
+                voiceStatus.textContent = '❌ Помилка розпізнавання';
+                console.error('Speech recognition error:', event.error);
+            };
+            
+            recognition.start();
+        }
+
+        function stopRecording() {
+            if (recognition && isRecording) {
+                recognition.stop();
+                isRecording = false;
+                
+                const voiceBtn = document.getElementById('voice-btn');
+                voiceBtn.classList.remove('recording');
+            }
+        }
+
+        // Запитати DeepSeek
+        async function askDeepSeek() {
+            const questionText = document.getElementById('question-text').value.trim();
+            
+            if (!questionText) {
+                alert('Введіть або надиктуйте запитання');
+                return;
+            }
+            
+            if (!currentComponent) {
+                alert('Спочатку оберіть компонент на AR сцені');
+                return;
+            }
+            
+            // Показати індикатор завантаження
+            const aiResponse = document.getElementById('ai-response');
+            aiResponse.innerHTML = '<div class="loading"></div> Обробляю запитання...';
+            showAiTooltip();
+            closeInputModal();
+            
+            try {
+                const componentInfo = componentData[currentComponent];
+                const contextMessage = `Користувач дивиться на компонент: ${componentInfo.name}
+Характеристики: ${componentInfo.specs.join(', ')}
+Запитання: ${questionText}`;
+                
+                const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${apiKey}`,
+                        'Content-Type': 'application/json',
+                        'HTTP-Referer': window.location.origin,
+                        'X-Title': 'PC Helper AR'
+                    },
+                    body: JSON.stringify({
+                        model: 'deepseek/deepseek-r1-0528:free',
+                        messages: [
+                            { role: 'system', content: SYSTEM_PROMPT },
+                            { role: 'user', content: contextMessage }
+                        ],
+                        max_tokens: 1000,
+                        temperature: 0.7,
+                        stream: false
+                    })
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({}));
+                    throw new Error(`HTTP ${response.status}: ${errorData.error?.message || 'Невідома помилка'}`);
+                }
+
+                const data = await response.json();
+                const aiResponseText = data.choices[0].message.content;
+
+                // Показати відповідь
+                aiResponse.innerHTML = aiResponseText.replace(/\n/g, '<br>');
+                
+            } catch (error) {
+                console.error('Помилка DeepSeek API:', error);
+                aiResponse.innerHTML = `❌ Помилка: ${error.message}<br><br>💡 Спробуйте ще раз або перевірте API ключ`;
+            }
+        }
+
+        // Показати підказку з відповіддю AI
+        function showAiTooltip() {
+            const tooltip = document.getElementById('ai-tooltip');
+            tooltip.classList.add('visible');
+            
+            // Позиціонування під панеллю компонента
+            tooltip.style.left = '50%';
+            tooltip.style.top = '85%';
+        }
+
+        // Приховати підказку AI
+        function hideAiTooltip() {
+            const tooltip = document.getElementById('ai-tooltip');
+            tooltip.classList.remove('visible');
+        }
+
+        // Ініціалізація після завантаження
+        document.addEventListener('DOMContentLoaded', function() {
+            // Перевірити підтримку веб-камери
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                alert('Ваш браузер не підтримує доступ до камери. Використовуйте Chrome, Firefox або Safari.');
+                return;
+            }
+
+            // Запросити дозвіл на камеру
+            navigator.mediaDevices.getUserMedia({ video: true })
+                .then(stream => {
+                    console.log('Камера успішно підключена');
+                    // Зупинити стрім після отримання дозволу
+                    stream.getTracks().forEach(track => track.stop());
+                })
+                .catch(err => {
+                    console.error('Помилка доступу до камери:', err);
+                    alert('Не вдалося отримати доступ до камери. Перевірте дозволи браузера.');
+                });
+
+            // Додати обробники для маркерів
+            const markers = document.querySelectorAll('a-marker');
+            markers.forEach(marker => {
+                marker.addEventListener('markerFound', function() {
+                    console.log('Маркер знайдено:', marker.id);
+                    const componentType = marker.id.replace('-marker', '');
+                    showComponentPanel(componentType);
+                });
+
+                marker.addEventListener('markerLost', function() {
+                    console.log('Маркер втрачено:', marker.id);
+                    hideComponentPanel();
+                    hideAiTooltip();
+                });
+            });
+
+            // Автоматично приховати інструкції через 10 секунд
+            setTimeout(() => {
+                const instructions = document.querySelector('.instructions');
+                if (instructions) {
+                    instructions.style.opacity = '0';
+                    setTimeout(() => instructions.style.display = 'none', 300);
+                }
+            }, 10000);
+        });
+
+        // Обробка помилок AR
+        window.addEventListener('error', function(e) {
+            if (e.message.includes('AR')) {
+                console.error('AR Error:', e);
+                // Не показувати помилку користувачу, щоб не заважати роботі
+            }
+        });
+
+        // Додаткові функції для кращого UX
+        
+        // Автоматичне приховання панелі через деякий час
+        let panelHideTimer;
+        function showComponentPanel(componentType) {
+            clearTimeout(panelHideTimer);
+            
+            currentComponent = componentType;
+            const data = componentData[componentType];
+            const panel = document.getElementById('component-panel');
+            
+            // Оновити вміст панелі
+            document.getElementById('component-icon').textContent = data.icon;
+            document.getElementById('component-name').textContent = data.name;
+            
+            const specsHtml = data.specs.map(spec => 
+                `<div class="spec-item">• ${spec}</div>`
+            ).join('');
+            document.getElementById('component-specs').innerHTML = specsHtml;
+            
+            // Показати панель
+            panel.classList.add('visible');
+            
+            // Позиціонування
+            panel.style.left = '50%';
+            panel.style.top = '70%';
+            
+            // Автоматично приховати через 15 секунд
+            panelHideTimer = setTimeout(() => {
+                hideComponentPanel();
+            }, 15000);
+        }
+
+        // Поліпшена функція приховання панелі
+        function hideComponentPanel() {
+            clearTimeout(panelHideTimer);
+            const panel = document.getElementById('component-panel');
+            panel.classList.remove('visible');
+            hideAiTooltip();
+        }
+
+        // Обробка натискання поза модальним вікном
+        document.getElementById('input-modal').addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeInputModal();
+            }
+        });
+
+        // Обробка клавіш
+        document.addEventListener('keydown', function(e) {
+            // Escape для закриття модального вікна
+            if (e.key === 'Escape') {
+                closeInputModal();
+            }
+            
+            // Enter для відправки запитання (якщо модальне вікно відкрите)
+            if (e.key === 'Enter' && e.ctrlKey && document.getElementById('input-modal').classList.contains('visible')) {
+                askDeepSeek();
+            }
+        });
+
+        // Функція для генерації маркерів (для розробників)
+        function generateMarkerPatterns() {
+            // Ця функція може бути використана для генерації унікальних паттернів маркерів
+            // В реальному проекті варто створити унікальні PNG файли для кожного маркера
+            console.log('Для кращої роботи створіть унікальні маркери на https://jeromeetienne.github.io/AR.js/three.js/examples/marker-training/examples/generator.html');
+        }
+
+        // Допоміжна функція для відображення статусу камери
+        function updateCameraStatus() {
+            const statusDiv = document.createElement('div');
+            statusDiv.style.cssText = `
+                position: fixed;
+                top: 80px;
+                right: 20px;
+                background: rgba(0,0,0,0.8);
+                color: white;
+                padding: 10px;
+                border-radius: 10px;
+                font-size: 12px;
+                z-index: 150;
+            `;
+            statusDiv.textContent = '📷 Камера активна';
+            document.body.appendChild(statusDiv);
+            
+            setTimeout(() => {
+                statusDiv.style.opacity = '0';
+                setTimeout(() => statusDiv.remove(), 300);
+            }, 3000);
+        }
+
+        // Виклик статусу камери після ініціалізації
+        setTimeout(updateCameraStatus, 2000);
