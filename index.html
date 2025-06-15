@@ -182,6 +182,20 @@
                 • Система автоматично пропонує запитання до AI
             </div>
         </div>
+            <div id="ar-waiting-indicator" style="
+            display: none;
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: rgba(0, 0, 0, 0.7);
+            color: #ffffff;
+            font-size: 14px;
+            padding: 6px 10px;
+            border-radius: 4px;
+            z-index: 1000;
+            ">
+      🤖 DeepSeek думає...
+        </div>
     </div>
 
     <!-- ============================
@@ -623,8 +637,14 @@
                 arSystem.init();
             } else if (!arSystem.isInitialized) {
                 arSystem.init();
-            }
+            } else {
+                 arSystem.mindarThree.start();
+                 const loadingDiv = document.getElementById("loading");
+                 if (loadingDiv) loadingDiv.style.display = "none";
+                 }
+
         }
+
 
         // ==============================================
         //     Функція: Запитати AI про останній сканований компонент
@@ -657,25 +677,47 @@
             const infoPanel = document.getElementById("info-panel");
             if (!infoPanel) return;
 
-            // Видаляємо стару кнопку, якщо вона є
+            // Видаляємо старі елементи, якщо є
             const oldBtn = document.getElementById("deepseek-btn");
             if (oldBtn) oldBtn.remove();
+            const oldInput = document.getElementById("deepseek-input");
+            if (oldInput) oldInput.remove();
 
-            // Створюємо нову кнопку
+            // 1️⃣ Поле для власного запитання
+            const input = document.createElement("input");
+            input.id = "deepseek-input";
+            input.type = "text";
+            input.placeholder = "Введіть своє запитання...";
+            input.style.width = "200px";
+            input.style.marginTop = "10px";
+            input.style.marginRight = "8px";
+            input.style.padding = "6px";
+            input.style.fontSize = "14px";
+
+            // 2️⃣ Кнопка “Запитати DeepSeek”
             const btn = document.createElement("button");
             btn.id = "deepseek-btn";
             btn.textContent = "Запитати DeepSeek";
-            btn.style.marginTop = "10px";
             btn.style.padding = "8px 12px";
             btn.style.fontSize = "14px";
             btn.style.cursor = "pointer";
+            btn.style.marginTop = "10px";
 
+            // Обробник кліку
             btn.addEventListener("click", () => {
-                const info = componentInfo[component];
-                const question = `Наскільки актуальний цей компонент: ${info.name}? ${info.description}`;
-                sendDeepSeekQuery(component, question);
+              const info = componentInfo[component];
+              // Якщо в полі є текст — беремо його, інакше формуємо стандартне питання
+              const userQuestion = input.value.trim();
+              const question = userQuestion !== ""
+                ? userQuestion
+                : `Наскільки актуальний цей компонент: ${info.name}? ${info.description}`;
+
+              // Збираємо і відправляємо запит
+              sendDeepSeekQuery(component, question);
             });
 
+            // Додаємо в панель: спочатку поле, потім кнопку
+            infoPanel.appendChild(input);
             infoPanel.appendChild(btn);
         };
 
@@ -685,13 +727,13 @@
         async function sendDeepSeekQuery(component, question) {
             if (!apiKey) {
                 alert("Спочатку введіть API ключ у режимі чату!");
-                switchToChat();
                 return;
             }
 
-            // Перемикаємося в чат, додаємо повідомлення
-            switchToChat();
-            addMessage("user", question);
+            const waitingDiv = document.getElementById("ar-waiting-indicator");
+            if (waitingDiv) waitingDiv.style.display = "block";
+
+            addMessage("user", question); // опційно
             conversationHistory.push({ role: "user", content: question });
 
             showTypingIndicator();
@@ -738,6 +780,10 @@
                 console.error("Помилка DeepSeek API:", err);
                 addMessage("ai", `❌ Помилка DeepSeek: ${err.message}`);
             }
+            finally {
+                // ГАРАНТОВАНО ховаємо індикатор “DeepSeek думає…”
+                if (waitingDiv) waitingDiv.style.display = "none";
+            }
         }
 
         // ==============================================
@@ -756,15 +802,20 @@
                 anchor.group.remove(anchor.userData.answerMesh);
                 delete anchor.userData.answerMesh;
             }
-
+        
+            // Також видалимо стару кнопку, якщо вона є
+            const oldBtn = document.getElementById("clear-answer-btn");
+            if (oldBtn) oldBtn.remove();
+        
             // Формуємо canvas
             const canvas = document.createElement("canvas");
             const ctx = canvas.getContext("2d");
-            const WIDTH = 512;
-            const PADDING = 10;
-            const LINE_HEIGHT = 24;
-            const MAX_CHARS_PER_LINE = 30;
-
+            const WIDTH = 640;
+            const PADDING = 8;
+            const LINE_HEIGHT = 20;
+            const MAX_CHARS_PER_LINE = 40;
+            const FONT_SIZE = 16; // залишаю твій розмір
+        
             // Розбиття тексту на рядки
             const words = text.split(" ");
             let lines = [];
@@ -778,26 +829,26 @@
                 }
             }
             if (currentLine) lines.push(currentLine.trim());
-
+        
             const HEIGHT = PADDING * 2 + lines.length * LINE_HEIGHT;
             canvas.width = WIDTH;
             canvas.height = HEIGHT;
-
+        
             // Фон і текст
             ctx.fillStyle = "rgba(0, 0, 0, 0.7)";
             ctx.fillRect(0, 0, WIDTH, HEIGHT);
-
+        
             ctx.fillStyle = "#FFFFFF";
-            ctx.font = "16px Arial";
+            ctx.font = FONT_SIZE + "px Arial";
             ctx.textAlign = "left";
             ctx.textBaseline = "top";
-
+        
             let y = PADDING;
             for (let line of lines) {
                 ctx.fillText(line, PADDING, y);
                 y += LINE_HEIGHT;
             }
-
+        
             // Створюємо текстуру та матеріал
             const texture = new THREE.CanvasTexture(canvas);
             const material = new THREE.MeshBasicMaterial({
@@ -805,21 +856,37 @@
                 transparent: true,
                 side: THREE.DoubleSide,
             });
-
-            // Визначаємо геометрію у 3D-просторі
+        
+            // Геометрія
             const geoWidth = 1.5;
             const aspect = HEIGHT / WIDTH;
             const geoHeight = geoWidth * aspect;
             const geometry = new THREE.PlaneGeometry(geoWidth, geoHeight);
-
+        
             const mesh = new THREE.Mesh(geometry, material);
-            // Позиціонуємо трохи вище моделі
-            mesh.position.set(0, 0.8, 0);
-
+            mesh.position.set(1.1, 0.1, 0);
+        
             // Зберігаємо у userData і додаємо
             if (!anchor.userData) anchor.userData = {};
             anchor.userData.answerMesh = mesh;
             anchor.group.add(mesh);
+        
+            // ✅ Тут же створюємо кнопку очищення і додаємо
+            const infoPanel = document.getElementById("info-panel");
+            if (infoPanel) {
+                const btn = document.createElement("button");
+                btn.id = "clear-answer-btn";
+                btn.textContent = "Очистити відповідь";
+                btn.style.display = "block";
+                btn.style.marginTop = "8px";
+                btn.onclick = () => {
+                    // Видаляємо mesh і кнопку
+                    anchor.group.remove(mesh);
+                    delete anchor.userData.answerMesh;
+                    btn.remove();
+                };
+                infoPanel.appendChild(btn);
+            }
         };
 
         // ==============================================
